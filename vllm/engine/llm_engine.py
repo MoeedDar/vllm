@@ -231,6 +231,7 @@ class LLMEngine:
         and updates the scheduler with the model outputs. Finally, it decodes
         the sequences and returns the newly generated results.
         """
+        start = time.time()
         (seq_group_metadata_list, scheduler_outputs,
          ignored_seq_groups) = self.scheduler.schedule()
         if ((not seq_group_metadata_list) and scheduler_outputs.is_empty()
@@ -255,6 +256,9 @@ class LLMEngine:
         self._stop_sequences(seq_groups)
         # Free the finished sequence groups.
         self.scheduler.free_finished_seq_groups()
+        step_time = time.time() - start
+        for sq in seq_groups:
+            sq.token_times.append(step_time)
 
         # Create the outputs.
         request_outputs: List[RequestOutput] = []

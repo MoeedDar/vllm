@@ -204,6 +204,7 @@ class SequenceGroup:
         self.seqs = seqs
         self.sampling_params = sampling_params
         self.arrival_time = arrival_time
+        self.token_times = []
 
     def get_seqs(
         self,

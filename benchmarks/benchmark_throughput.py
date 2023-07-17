@@ -12,6 +12,7 @@ from tqdm import tqdm
 from vllm import LLM, SamplingParams
 from vllm.transformers_utils.tokenizer import get_tokenizer
 
+import matplotlib.pyplot as plt
 
 def sample_requests(
     dataset_path: str,
@@ -94,7 +95,14 @@ def run_vllm(
 
     start = time.time()
     # FIXME(woosuk): Do use internal method.
-    llm._run_engine(use_tqdm=True)
+    outputs = llm._run_engine(use_tqdm=True)
+    for output in outputs:
+        print(len(output.token_times))
+        plt.ylim(0.018, max(output.token_times) * 1.1)
+        plt.scatter(range(len(output.token_times)), output.token_times)
+        plt.title(f"input_len={len(output.prompt_token_ids)}")
+        plt.savefig(f"figures/{seed}")
+        plt.close()
     end = time.time()
     return end - start
 

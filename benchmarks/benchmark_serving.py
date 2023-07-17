@@ -26,9 +26,11 @@ import aiohttp
 import numpy as np
 from transformers import PreTrainedTokenizerBase
 from vllm.transformers_utils.tokenizer import get_tokenizer
+import matplotlib.pyplot as plt
 
 # (prompt len, output len, latency)
 REQUEST_LATENCY: List[Tuple[int, int, float]] = []
+all_token_times: List[float] = []
 
 
 def sample_requests(
@@ -143,7 +145,6 @@ async def send_request(
                     chunks.append(chunk)
             output = b"".join(chunks).decode("utf-8")
             output = json.loads(output)
-
             # Re-send the request if it failed.
             if "error" not in output:
                 break
@@ -151,6 +152,7 @@ async def send_request(
     request_end_time = time.time()
     request_latency = request_end_time - request_start_time
     REQUEST_LATENCY.append((prompt_len, output_len, request_latency))
+    all_token_times.append(output["token_times"])
 
 
 async def benchmark(
@@ -186,23 +188,28 @@ def main(args: argparse.Namespace):
     benchmark_end_time = time.time()
     benchmark_time = benchmark_end_time - benchmark_start_time
     print(f"Total time: {benchmark_time:.2f} s")
-    print(f"Throughput: {args.num_prompts / benchmark_time:.2f} requests/s")
+    print(f"Throughput: {args.num_prompts / benchmark_time:.4f} requests/s")
 
     # Compute the latency statistics.
     avg_latency = np.mean([latency for _, _, latency in REQUEST_LATENCY])
-    print(f"Average latency: {avg_latency:.2f} s")
+    print(f"Average latency: {avg_latency:.4f} s")
     avg_per_token_latency = np.mean([
         latency / (prompt_len + output_len)
         for prompt_len, output_len, latency in REQUEST_LATENCY
     ])
-    print(f"Average latency per token: {avg_per_token_latency:.2f} s")
+    print(f"Average latency per token: {avg_per_token_latency:.4f} s")
     avg_per_output_token_latency = np.mean([
         latency / output_len
         for _, output_len, latency in REQUEST_LATENCY
     ])
     print("Average latency per output token: "
-          f"{avg_per_output_token_latency:.2f} s")
+          f"{avg_per_output_token_latency:.4f} s")
 
+    for i, tk in enumerate(all_token_times): 
+        plt.ylim(0, max(tk) * 1.1)
+        plt.scatter(range(len(tk)), tk)
+        plt.savefig(f"figures/multi_request/{i}.png")
+        plt.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
